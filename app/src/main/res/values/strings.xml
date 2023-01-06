@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">todolistapp</string>
+    <string name="app_name">Todo List App</string>
     <string name="new_todo_hint">Enter a new todo</string>
     <string name="add_todo">Add todo</string>
     <string name="delete">Delete</string>

@@ -8,5 +8,6 @@ object TodoListContract {
         const val TABLE_NAME = "todos"
         const val COLUMN_NAME_ID = "id"
         const val COLUMN_NAME_TODO_TEXT = "todo_text"
+        const val COLUMN_NAME_COST = "cost"
     }
 }

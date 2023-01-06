@@ -1,66 +1,103 @@
 package com.example.todolistapp
 
+import android.app.Activity
+import android.database.Cursor
 import android.os.Bundle
-import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.EditText
-import android.widget.ListView
-import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.list_item.view.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
 
-    private val todoList = arrayListOf<String>()
-    private lateinit var arrayAdapter: ArrayAdapter<String>
-    private lateinit var db: TodoListDbHelper
+    private lateinit var dbHelper: TodoListDbHelper
+    private lateinit var todoList: ArrayList<String>
+    private lateinit var adapter: ArrayAdapter<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        db = TodoListDbHelper(this)
-        loadTodos()
-
-        arrayAdapter = ArrayAdapter(this, R.layout.list_item, R.id.todo_text, todoList)
-        todo_list.adapter = arrayAdapter
+        dbHelper = TodoListDbHelper(this)
+        todoList = ArrayList()
+        adapter = ArrayAdapter(this, R.layout.list_item, R.id.todo_text, todoList)
+        todo_list.adapter = adapter
 
         add_todo_button.setOnClickListener {
             addTodo()
         }
+
+        todo_list.setOnItemClickListener { _, view, _, _ ->
+            view.delete_button.setOnClickListener {
+                val todoText = view.todo_text.text.toString()
+                deleteTodo(todoText)
+            }
+        }
+
+        getAllTodos()
     }
 
-    private fun loadTodos() {
-        val cursor = db.getAllTodos()
-        cursor.moveToFirst()
-        while (!cursor.isAfterLast) {
-            val todoText = cursor.getString(cursor.getColumnIndex(TodoListContract.TodoListEntry.COLUMN_NAME_TODO_TEXT))
-            todoList.add(todoText)
-            cursor.moveToNext()
+
+
+    private fun addTodo() {
+        val todoText = new_todo_edit_text.text.toString()
+        val cost = todo_cost_edit_text.text.toString().toDouble()
+        if (todoText.isNotEmpty()) {
+            dbHelper.insertTodo(todoText, cost)
+            new_todo_edit_text.text.clear()
+            todo_cost_edit_text.text.clear()
+            Toast.makeText(this, "Todo added!", Toast.LENGTH_SHORT).show()
+            getAllTodos()
+            updateTotalCost()
+        } else {
+            Toast.makeText(this, "Please enter a todo", Toast.LENGTH_SHORT).show()
         }
+    }
+
+
+    private fun deleteTodo(todoText: String) {
+        dbHelper.deleteTodo(todoText)
+        getAllTodos()
+        updateTotalCost()
+    }
+
+
+    private fun getAllTodos() {
+        val db = dbHelper.readableDatabase
+        val projection = arrayOf(TodoListContract.TodoListEntry.COLUMN_NAME_ID, TodoListContract.TodoListEntry.COLUMN_NAME_TODO_TEXT)
+        val cursor: Cursor = db.query(TodoListContract.TodoListEntry.TABLE_NAME, projection, null, null, null, null, null)
+
+        todoList.clear()
+        while (cursor.moveToNext()) {
+            val columnIndex = cursor.getColumnIndex(TodoListContract.TodoListEntry.COLUMN_NAME_TODO_TEXT)
+            if (columnIndex != -1) {
+                val todoText = cursor.getString(columnIndex)
+                todoList.add(todoText)
+            }
+        }
+
+        adapter.notifyDataSetChanged()
         cursor.close()
     }
 
-    private fun addTodo() {
-        val todoText = new_todo_text.text.toString()
-        if (todoText.isNotEmpty()) {
-            db.addTodo(todoText)
-            todoList.add(todoText)
-            arrayAdapter.notifyDataSetChanged()
-            new_todo_text.setText("")
+
+    private fun updateTotalCost() {
+        val db = dbHelper.readableDatabase
+        val projection = arrayOf(TodoListContract.TodoListEntry.COLUMN_NAME_ID, TodoListContract.TodoListEntry.COLUMN_NAME_COST)
+        val cursor: Cursor = db.query(TodoListContract.TodoListEntry.TABLE_NAME, projection, null, null, null, null, null)
+
+        var totalCost = 0.0
+        while (cursor.moveToNext()) {
+            val columnIndex = cursor.getColumnIndex(TodoListContract.TodoListEntry.COLUMN_NAME_COST)
+            if (columnIndex != -1) {
+                val cost = cursor.getDouble(columnIndex)
+                totalCost += cost
+            }
         }
+
+        total_cost_text_view.text = "Total Cost: $${totalCost}"
+        cursor.close()
     }
 
-    private fun deleteTodo(todoText: String) {
-        db.deleteTodo(todoText)
-        todoList.remove(todoText)
-        arrayAdapter.notifyDataSetChanged()
-    }
 
-    private fun updateTodo(oldTodoText: String, newTodoText: String) {
-        db.updateTodo(oldTodoText, newTodoText)
-        val index = todoList.indexOf(oldTodoText)
-        todoList[index] = newTodoText
-        arrayAdapter.notifyDataSetChanged()
-    }
 }
